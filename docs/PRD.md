@@ -4,7 +4,7 @@
 > **버전**: v1.0 (MVP)  
 > **작성일**: 2026-09-24  
 > **작성자**: Antigravity & 김민준 (@mlm577373)  
-> **기술 스택**: Next.js 16 (App Router), TypeScript, Tailwind CSS v4, Zustand (전역 상태 관리 & LocalStorage persist)  
+> **기술 스택**: Next.js 16 (App Router), TypeScript, Tailwind CSS v4, shadcn/ui, Zustand (전역 상태 관리 & LocalStorage persist)  
 
 ---
 
@@ -189,13 +189,47 @@ flowchart TD
   - `setButtonStyle(style: ButtonStyle)`: 버튼 스타일 변경
   - `resetToDefault()`: 초기 기본 데이터로 리셋
 
-- **초기 시드 데이터**: 기본적으로 `@mlm577373` (김민준) 프로필과 주요 샘플 링크가 풍부하게 채워진 상태로 시작하여 바로 인터랙션 체험 가능
+- **초기 시드 및 더미데이터 명세 (`src/data/dummy-data.ts`)**:
+  - **참조 파일**:
+    - 타입 정의: [`src/types/link.ts`](file:///c:/Users/김민준/Desktop/군e러닝/바이브코딩/my-link/src/types/link.ts)
+    - 더미 데이터 모듈: [`src/data/dummy-data.ts`](file:///c:/Users/김민준/Desktop/군e러닝/바이브코딩/my-link/src/data/dummy-data.ts)
+  - **기본 사용자 프로필 (`DEFAULT_USER_PROFILE`)**:
+    - `@mlm577373` (김민준) 프로필을 기본 시드로 설정하여 초기 진입 시 즉시 인터랙션 체험 가능
+    - 한 줄 바이오, 아바타 이미지 URL, 직무/관심사 태그(`['Next.js', 'TypeScript', 'Frontend', 'Creative']`), 기본 테마(`aurora-dream`), 버튼 스타일(`shape: 'pill'`, `variant: 'soft-glass'`)
+    - 하단 퀵 소셜 링크 바(`socialLinks`): GitHub, YouTube, Instagram, Mail
+  - **기본 링크 목록 (`DEFAULT_LINKS`) - 7종 구성**:
+    1. `GitHub`: `@mlm577373 • 오픈소스 프로젝트 & 코드` (뱃지: `Official`, 클릭 수: 342)
+    2. `포트폴리오 웹사이트`: `최신 프로젝트 & 작업물 모음` (뱃지: `Featured`, 클릭 수: 528)
+    3. `이메일 문의`: `mlm577373@gmail.com` (뱃지: `Contact`, 클릭 수: 89)
+    4. `개발 & 테크 유튜브 채널`: `실전 코딩 강좌와 개발자 브이로그 📺` (뱃지: `New`, 클릭 수: 215)
+    5. `인스타그램`: `일상과 개발 라이프스타일 📸` (클릭 수: 147)
+    6. `기술 블로그 (준비 중)`: `isActive: false` (임시 비공개/숨김 토글 기능 검증용, 뱃지: `Soon`, 클릭 수: 12)
+    7. `커피 한 잔 후원하기`: `buymeacoffee` 후원 링크 (클릭 수: 64)
+  - **프리셋 및 부가 데이터**:
+    - 6종 테마 스타일 메타데이터 (`THEME_PRESETS`)
+    - 다중 페르소나 테스트 데이터 (`SAMPLE_PROFILES`: 테크 크리에이터 `sophia_tech`, UI/UX 디자이너 `seoyeon_design`)
+    - URL 기반 스마트 소셜 아이콘 자동 감지 유틸리티 (`detectSocialPlatform`)
+    - 총 누적 클릭 수 집계 유틸리티 (`getTotalClicks`)
 
 ---
 
 ## 5. UI/UX 디자인 가이드라인
 
 - **톤앤매너**: 세련됨, 심플함, 감각적인 마이크로 인터랙션
+- **UI 컴포넌트 시스템 (`shadcn/ui`)**:
+  - **`shadcn/ui`** 기반 모듈형 UI 디자인 시스템 구축
+  - Radix UI 기반의 완전한 웹 접근성(WAI-ARIA) 및 키보드 내비게이션 보장
+  - CSS Variables(디자인 토큰) 기반의 일관된 색상/여백 관리 및 다크/라이트 모드 지원
+  - **주요 활용 컴포넌트**:
+    - `Button`: 링크 클릭, CTA, 액션 버튼
+    - `Card`: 링크 아이템, 통계 요약 카드
+    - `Input` / `Textarea`: 프로필 및 링크 입력 폼
+    - `Switch`: 링크 공개/비공개 토글 스위치
+    - `Avatar`: 프로필 이미지 및 이니셜 아바타
+    - `Dialog / Sheet`: 링크 추가/수정 모달창, 모바일 메뉴
+    - `DropdownMenu`: 링크 옵션(수정/삭제/공유) 메뉴
+    - `Tabs`: 관리자 대시보드 모바일 뷰(편집/미리보기) 탭
+    - `Toast (Sonner)`: 복사 완료 및 저장 알림 피드백
 - **모바일 퍼스트(Mobile-First)**: 링크트리 특성상 트래픽의 90% 이상이 모바일이므로 모든 컴포넌트는 모바일 뷰를 최우선으로 검증
 - **접근성 및 피드백**:
   - 저장 시 "저장되었습니다" 시각적 피드백 제공 (상태 뱃지 또는 토스트)
@@ -207,6 +241,8 @@ flowchart TD
 
 ### Phase 1: MVP 완성 (현재 범위)
 - [x] 프로젝트 초기 환경 구성 (Next.js 16 + Tailwind CSS v4 + TypeScript)
+- [x] shadcn/ui 초기화 및 기본 디자인 시스템 구축 (`components.json`, `cn` 유틸리티)
+- [x] 링크 목록 및 사용자 프로필 더미데이터 / 타입 시스템 구축 (`src/types/link.ts`, `src/data/dummy-data.ts`)
 - [ ] Zustand 스토어 및 LocalStorage Persist 연동 (`useMyLinkStore`)
 - [ ] 관리자 대시보드 (`/admin`) 좌우 분할 UI 및 링크 CRUD 구현
 - [ ] 실시간 모바일 목업 프리뷰 동기화

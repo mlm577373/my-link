@@ -2,13 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, Plus } from 'lucide-react';
 import { UserProfile } from '@/types';
 import { THEME_PRESETS } from '@/data/dummy-data';
 import { useMyLinkStore } from '@/store/useMyLinkStore';
 import { ProfileHeader } from './ProfileHeader';
 import { LinkCard } from './LinkCard';
 import { SocialBar } from './SocialBar';
+import { AddLinkDialog } from './AddLinkDialog';
 import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -72,8 +73,25 @@ export function ProfileView({
               />
             ))
           ) : (
-            <div className="py-12 text-center opacity-60 text-sm">
+            <div className="py-8 text-center opacity-60 text-sm">
               등록된 공개 링크가 없습니다.
+            </div>
+          )}
+
+          {/* + 새 링크 추가 다이얼로그 트리거 버튼 */}
+          {useLiveStore && (
+            <div className="pt-2">
+              <AddLinkDialog
+                trigger={
+                  <button
+                    type="button"
+                    className="w-full py-3.5 px-4 rounded-2xl border-2 border-dashed border-white/20 hover:border-white/40 bg-white/5 hover:bg-white/10 text-white/90 hover:text-white flex items-center justify-center gap-2 text-sm font-semibold transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] backdrop-blur-sm shadow-sm"
+                  >
+                    <Plus className="w-4 h-4 text-indigo-300" />
+                    <span>+ 새 링크 추가하기</span>
+                  </button>
+                }
+              />
             </div>
           )}
         </section>

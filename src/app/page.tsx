@@ -5,15 +5,27 @@ import Link from 'next/link';
 import { SAMPLE_PROFILES, DEFAULT_USER_PROFILE, THEME_PRESETS } from '@/data/dummy-data';
 import { useMyLinkStore } from '@/store/useMyLinkStore';
 import { ProfileView } from '@/components/profile/ProfileView';
+import { AddLinkDialog } from '@/components/profile/AddLinkDialog';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Palette, Users, ExternalLink } from 'lucide-react';
+import { Palette, Users, ExternalLink, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function HomePage() {
   const [selectedUser, setSelectedUser] = useState<string>('mlm577373');
   const storeTheme = useMyLinkStore((state) => state.profile.theme);
   const setTheme = useMyLinkStore((state) => state.setTheme);
+  const resetToDefault = useMyLinkStore((state) => state.resetToDefault);
+
+  // 이전에 로컬스토리지에 남아있던 추가 링크 정리 및 초기화
+  React.useEffect(() => {
+    resetToDefault();
+    try {
+      localStorage.removeItem('mylink-storage');
+    } catch {
+      // ignore
+    }
+  }, [resetToDefault]);
 
   const currentProfile = SAMPLE_PROFILES[selectedUser] || DEFAULT_USER_PROFILE;
 
@@ -81,18 +93,35 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* 독립 URL 링크 */}
-          <Link
-            href={`/${selectedUser}`}
-            target="_blank"
-            className={cn(
-              buttonVariants({ variant: 'ghost', size: 'xs' }),
-              'text-[11px] text-slate-300 hover:text-white'
+          {/* 액션 버튼들 */}
+          <div className="flex items-center gap-2">
+            {selectedUser === 'mlm577373' && (
+              <AddLinkDialog
+                trigger={
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/80 hover:bg-indigo-600 text-white text-[11px] font-medium transition-all shadow-sm"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>링크 추가</span>
+                  </button>
+                }
+              />
             )}
-          >
-            <span>단독 링크</span>
-            <ExternalLink className="w-3 h-3 ml-1" />
-          </Link>
+
+            {/* 독립 URL 링크 */}
+            <Link
+              href={`/${selectedUser}`}
+              target="_blank"
+              className={cn(
+                buttonVariants({ variant: 'ghost', size: 'xs' }),
+                'text-[11px] text-slate-300 hover:text-white'
+              )}
+            >
+              <span>단독 링크</span>
+              <ExternalLink className="w-3 h-3 ml-1" />
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -50,10 +50,21 @@ export function Dialog({ open: controlledOpen, onOpenChange: setControlledOpen, 
 
 export function DialogTrigger({
   children,
+  asChild,
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }) {
   const { onOpenChange } = useDialog();
+
+  if (asChild && React.isValidElement(children)) {
+    // asChild: 자식 element에 onClick만 주입하고 button으로 감싸지 않음
+    return React.cloneElement(children as React.ReactElement<React.HTMLAttributes<HTMLElement>>, {
+      onClick: (e: React.MouseEvent<HTMLElement>) => {
+        (children as React.ReactElement<React.HTMLAttributes<HTMLElement>>).props.onClick?.(e as never);
+        onOpenChange(true);
+      },
+    });
+  }
 
   return (
     <button

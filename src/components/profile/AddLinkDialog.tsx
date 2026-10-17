@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button';
 import { PlatformIcon } from '@/components/common/PlatformIcon';
 import { useMyLinkStore } from '@/store/useMyLinkStore';
 import { detectSocialPlatform } from '@/data/dummy-data';
-import { Plus, Sparkles } from 'lucide-react';
+import { addLinkToFirestore } from '@/lib/firestore';
+import { Plus, Sparkles, Loader2 } from 'lucide-react';
 
 const AVAILABLE_ICONS = [
   { key: 'github', label: 'GitHub' },
@@ -44,7 +45,7 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = setControlledOpen || setInternalOpen;
 
-  const addLink = useMyLinkStore((state) => state.addLink);
+  const addLinkToStore = useMyLinkStore((state) => state.addLink);
 
   // 폼 상태
   const [url, setUrl] = useState('');
@@ -55,6 +56,8 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
   const [isActive, setIsActive] = useState(true);
   const [detectedBrand, setDetectedBrand] = useState<string | null>(null);
   const [errors, setErrors] = useState<{ url?: string; title?: string }>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // URL 입력 시 스마트 플랫폼 자동 감지
   const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,9 +101,10 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
     setIsActive(true);
     setDetectedBrand(null);
     setErrors({});
+    setSubmitError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const newErrors: { url?: string; title?: string } = {};
@@ -129,18 +133,39 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
       finalUrl = `https://${finalUrl}`;
     }
 
-    // Zustand 로컬 스토어에 추가
-    addLink({
-      title: title.trim(),
-      url: finalUrl,
-      icon,
-      subtitle: subtitle.trim() || undefined,
-      badge: badge.trim() || undefined,
-      isActive,
-    });
+    setIsLoading(true);
+    setSubmitError(null);
 
-    resetForm();
-    setIsOpen(false);
+    try {
+      const newOrder = Date.now(); // 임시 order (추가 순서 보장)
+      // Firestore에 저장 후 반환된 문서 ID로 스토어 동기화
+      const savedLink = await addLinkToFirestore({
+        title: title.trim(),
+        url: finalUrl,
+        icon,
+        subtitle: subtitle.trim() || undefined,
+        badge: badge.trim() || undefined,
+        isActive,
+        clicks: 0,
+        order: newOrder,
+      });
+
+      // 스토어를 직접 패치하여 id를 Firestore 문서 ID로 일치시킴
+      useMyLinkStore.setState((state) => ({
+        profile: {
+          ...state.profile,
+          links: [...state.profile.links, savedLink],
+        },
+      }));
+
+      resetForm();
+      setIsOpen(false);
+    } catch (err) {
+      console.error('Firestore 저장 실패:', err);
+      setSubmitError('링크 저장에 실패했습니다. 다시 시도해 주세요.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -300,6 +325,11 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
 
+          {/* 에러 메시지 */}
+          {submitError && (
+            <p className="text-[11px] text-pink-400 font-medium text-center">{submitError}</p>
+          )}
+
           {/* 다이얼로그 푸터 (버튼) */}
           <DialogFooter className="pt-2">
             <Button
@@ -309,16 +339,27 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
                 resetForm();
                 setIsOpen(false);
               }}
+              disabled={isLoading}
               className="text-slate-400 hover:text-white"
             >
               취소
             </Button>
             <Button
-              type="submit" disabled={!!errors.url || !!errors.title || !url.trim() || !title.trim()}
+              type="submit"
+              disabled={!!errors.url || !!errors.title || !url.trim() || !title.trim() || isLoading}
               className="bg-gradient-to-r from-indigo-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-semibold shadow-md"
             >
-              <Plus className="w-4 h-4 mr-1.5" />
-              링크 추가 완료
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  저장 중...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  링크 추가 완료
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

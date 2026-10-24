@@ -119,9 +119,9 @@ export const THEME_PRESETS: ThemePreset[] = [
     key: 'minimalist-light',
     name: 'Minimalist Light',
     description: '깔끔하고 단정한 화이트 & 라이트 그레이',
-    bgClass: 'bg-gradient-to-br from-neutral-50 via-gray-100 to-stone-200',
-    cardClass: 'bg-white/80 border-gray-200 text-gray-900 hover:border-gray-400 shadow-sm backdrop-blur-sm',
-    textClass: 'text-gray-900',
+    bgClass: 'bg-gradient-to-br from-slate-50 via-gray-100 to-slate-200',
+    cardClass: 'bg-white/90 border-slate-300 text-slate-800 hover:border-slate-400 hover:bg-white shadow-sm backdrop-blur-sm',
+    textClass: 'text-slate-900',
     accentColor: '#18181b',
   },
   {

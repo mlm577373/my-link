@@ -17,6 +17,7 @@ import { PlatformIcon } from '@/components/common/PlatformIcon';
 import { useMyLinkStore } from '@/store/useMyLinkStore';
 import { detectSocialPlatform } from '@/data/dummy-data';
 import { addLinkToFirestore } from '@/lib/firestore';
+import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Sparkles, Loader2 } from 'lucide-react';
 
 const AVAILABLE_ICONS = [
@@ -38,14 +39,22 @@ interface AddLinkDialogProps {
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  userId?: string;
+  onLinkAdded?: (newLink: import('@/types').LinkItem) => void;
 }
 
-export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: setControlledOpen }: AddLinkDialogProps) {
+export function AddLinkDialog({
+  trigger,
+  open: controlledOpen,
+  onOpenChange: setControlledOpen,
+  userId: propUserId,
+  onLinkAdded,
+}: AddLinkDialogProps) {
+  const { user } = useAuth();
+  const effectiveUserId = propUserId || user?.uid;
   const [internalOpen, setInternalOpen] = useState(false);
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
   const setIsOpen = setControlledOpen || setInternalOpen;
-
-  const addLinkToStore = useMyLinkStore((state) => state.addLink);
 
   // 폼 상태
   const [url, setUrl] = useState('');
@@ -133,13 +142,18 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
       finalUrl = `https://${finalUrl}`;
     }
 
+    if (!effectiveUserId) {
+      setSubmitError('로그인이 필요한 기능입니다. 먼저 구글 로그인을 진행해 주세요.');
+      return;
+    }
+
     setIsLoading(true);
     setSubmitError(null);
 
     try {
       const newOrder = Date.now(); // 임시 order (추가 순서 보장)
-      // Firestore에 저장 후 반환된 문서 ID로 스토어 동기화
-      const savedLink = await addLinkToFirestore({
+      // Firestore users/{user.uid}/links에 저장 후 반환된 문서 ID로 스토어 동기화
+      const savedLink = await addLinkToFirestore(effectiveUserId, {
         title: title.trim(),
         url: finalUrl,
         icon,
@@ -150,7 +164,11 @@ export function AddLinkDialog({ trigger, open: controlledOpen, onOpenChange: set
         order: newOrder,
       });
 
-      // 스토어를 직접 패치하여 id를 Firestore 문서 ID로 일치시킴
+      // 콜백 호출 및 스토어 동기화
+      if (onLinkAdded) {
+        onLinkAdded(savedLink);
+      }
+
       useMyLinkStore.setState((state) => ({
         profile: {
           ...state.profile,

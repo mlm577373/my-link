@@ -6,6 +6,7 @@ import { UserProfile } from '@/types';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
@@ -13,12 +14,20 @@ interface ProfileHeaderProps {
 
 export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const isLightTheme = profile.theme === 'minimalist-light';
 
   const handleShare = async () => {
-    const url = typeof window !== 'undefined' ? window.location.href : '';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    // 개인 공개 페이지 URL 결정: profile.username 경로 우선
+    const url = profile.username
+      ? `${origin}/${profile.username}`
+      : typeof window !== 'undefined'
+      ? window.location.href
+      : '';
+
     const shareData = {
       title: `${profile.displayName} (@${profile.username}) - 마이링크`,
-      text: profile.bio,
+      text: profile.bio || `${profile.displayName}님의 마이링크 페이지입니다.`,
       url: url,
     };
 
@@ -55,12 +64,17 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
           variant="outline"
           size="sm"
           onClick={handleShare}
-          className="rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-md shadow-sm gap-1.5 text-xs h-8 px-3"
+          className={cn(
+            'rounded-full backdrop-blur-md shadow-sm gap-1.5 text-xs h-8 px-3 transition-colors',
+            isLightTheme
+              ? 'bg-white/80 hover:bg-white border-slate-300 text-slate-800'
+              : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+          )}
         >
           {copied ? (
             <>
-              <Check className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-emerald-300 font-medium">복사됨!</span>
+              <Check className="w-3.5 h-3.5 text-emerald-500" />
+              <span className={cn('font-medium', isLightTheme ? 'text-emerald-600' : 'text-emerald-300')}>복사됨!</span>
             </>
           ) : (
             <>
@@ -97,14 +111,19 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
       </div>
 
       {/* 이름 & @username 핸들 뱃지 */}
-      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center justify-center gap-2">
+      <h1 className={cn('text-2xl sm:text-3xl font-extrabold tracking-tight flex items-center justify-center gap-2', isLightTheme ? 'text-slate-900' : 'text-white')}>
         <span>{profile.displayName}</span>
       </h1>
 
       <div className="mt-1.5">
         <Badge
           variant="outline"
-          className="rounded-full bg-white/10 border-white/20 text-white/90 font-medium px-2.5 py-0.5 text-xs backdrop-blur-sm"
+          className={cn(
+            'rounded-full font-medium px-2.5 py-0.5 text-xs backdrop-blur-sm',
+            isLightTheme
+              ? 'bg-slate-200/80 border-slate-300 text-slate-700'
+              : 'bg-white/10 border-white/20 text-white/90'
+          )}
         >
           @{profile.username}
         </Badge>
@@ -112,7 +131,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
       {/* 한 줄 바이오 (소개글) */}
       {profile.bio && (
-        <p className="mt-3 text-sm sm:text-base font-normal opacity-90 max-w-sm whitespace-pre-line leading-relaxed">
+        <p className={cn('mt-3 text-sm sm:text-base font-normal max-w-sm whitespace-pre-line leading-relaxed', isLightTheme ? 'text-slate-700' : 'text-white/90')}>
           {profile.bio}
         </p>
       )}
@@ -124,7 +143,12 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
             <Badge
               key={tag}
               variant="outline"
-              className="text-[11px] font-medium rounded-full bg-white/5 border-white/15 px-2.5 py-0.5 opacity-80 hover:opacity-100 transition-opacity"
+              className={cn(
+                'text-[11px] font-medium rounded-full px-2.5 py-0.5 transition-opacity',
+                isLightTheme
+                  ? 'bg-slate-200/70 border-slate-300 text-slate-700 hover:bg-slate-300/80'
+                  : 'bg-white/5 border-white/15 text-white/80 hover:opacity-100'
+              )}
             >
               #{tag}
             </Badge>

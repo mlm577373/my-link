@@ -8,9 +8,10 @@ import { cn } from '@/lib/utils';
 
 interface SocialBarProps {
   socialLinks?: SocialLink[];
+  isLightTheme?: boolean;
 }
 
-export function SocialBar({ socialLinks }: SocialBarProps) {
+export function SocialBar({ socialLinks, isLightTheme }: SocialBarProps) {
   if (!socialLinks || socialLinks.length === 0) return null;
 
   return (
@@ -25,7 +26,10 @@ export function SocialBar({ socialLinks }: SocialBarProps) {
           aria-label={item.title || item.platform}
           className={cn(
             buttonVariants({ variant: 'outline', size: 'icon' }),
-            'w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-md shadow-sm hover:scale-110 active:scale-95 transition-all duration-200'
+            'w-10 h-10 rounded-full backdrop-blur-md shadow-sm hover:scale-110 active:scale-95 transition-all duration-200',
+            isLightTheme
+              ? 'bg-white/80 hover:bg-white border-slate-300 text-slate-800 shadow-sm'
+              : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
           )}
         >
           <PlatformIcon name={item.platform} className="w-4 h-4" />

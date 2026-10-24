@@ -70,6 +70,7 @@ export function ProfileView({
                 buttonStyle={profile.buttonStyle}
                 cardThemeClass={currentTheme.cardClass}
                 onLinkClick={handleLinkClick}
+                readOnly={!useLiveStore}
               />
             ))
           ) : (
@@ -97,7 +98,10 @@ export function ProfileView({
         </section>
 
         {/* 3. 퀵 소셜 아이콘 바 (와이어프레임 7번) */}
-        <SocialBar socialLinks={profile.socialLinks} />
+        <SocialBar
+          socialLinks={profile.socialLinks}
+          isLightTheme={profile.theme === 'minimalist-light'}
+        />
 
         {/* 4. 바이럴 유도 배너 (와이어프레임 8번) */}
         <div className="mt-6 w-full">

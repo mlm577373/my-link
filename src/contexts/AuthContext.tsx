@@ -3,7 +3,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { signInWithGoogle as firebaseSignInWithGoogle, logout as firebaseLogout } from '@/lib/auth';
+import {
+  signInWithGoogle as firebaseSignInWithGoogle,
+  logout as firebaseLogout,
+  checkRedirectResult,
+} from '@/lib/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -24,6 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 리디렉션 로그인 결과 확인
+    checkRedirectResult().catch((err) => {
+      console.error('리디렉션 로그인 처리 오류:', err);
+    });
+
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setLoading(false);

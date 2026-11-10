@@ -15,6 +15,7 @@ import { ProfileHeader } from './ProfileHeader';
 import { LinkCard } from './LinkCard';
 import { SocialBar } from './SocialBar';
 import { AddLinkDialog } from './AddLinkDialog';
+import { EditProfileDialog } from './EditProfileDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -117,9 +118,9 @@ export function UserPersonalView({ user }: UserPersonalViewProps) {
   // 프로필 정보 결합 (Firestore 프로필과 구글 유저 정보)
   const fullProfile: UserProfile = {
     username: profile?.username || user.email?.split('@')[0] || user.uid.slice(0, 8),
-    displayName: user.displayName || profile?.displayName || '마이링크 유저',
-    bio: profile?.bio || '구글 로그인으로 연동된 마이링크 페이지입니다.',
-    avatarUrl: user.photoURL || profile?.avatarUrl,
+    displayName: profile?.displayName || user.displayName || '마이링크 유저',
+    bio: profile?.bio ?? '구글 로그인으로 연동된 마이링크 페이지입니다.',
+    avatarUrl: profile?.avatarUrl || user.photoURL || undefined,
     tags: profile?.tags || ['Google 로그인', 'MyLink'],
     theme: currentThemeKey,
     buttonStyle: profile?.buttonStyle || { shape: 'rounded', variant: 'soft-glass' },
@@ -127,12 +128,13 @@ export function UserPersonalView({ user }: UserPersonalViewProps) {
     socialLinks: profile?.socialLinks || [],
   };
 
-  // 공개 공유 URL
-  const sharePath = fullProfile.username;
+  // 공개 공유 URL (displayName 기준)
+  const sharePath = fullProfile.displayName || fullProfile.username;
+  const encodedSharePath = encodeURIComponent(sharePath);
   const shareFullUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/${sharePath}`
-      : `/${sharePath}`;
+      ? `${window.location.origin}/${encodedSharePath}`
+      : `/${encodedSharePath}`;
 
   const handleCopyShareLink = async () => {
     if (typeof window !== 'undefined' && navigator.clipboard) {
@@ -198,7 +200,7 @@ export function UserPersonalView({ user }: UserPersonalViewProps) {
               )}
             </Button>
             <Link
-              href={`/${sharePath}`}
+              href={`/${encodedSharePath}`}
               target="_blank"
               className="inline-flex items-center justify-center h-7 px-2 text-xs rounded-md bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white border border-white/10 transition-colors"
               title="새 탭에서 내 공개 페이지 확인"
@@ -250,8 +252,23 @@ export function UserPersonalView({ user }: UserPersonalViewProps) {
           </div>
         </div>
 
-        {/* 4. 프로필 헤더 (상단 공유 버튼 포함) */}
-        <ProfileHeader profile={fullProfile} />
+        {/* 4. 프로필 헤더 (상단 공유 버튼 및 프로필 수정 모달 포함) */}
+        <ProfileHeader
+          profile={fullProfile}
+          isOwner={true}
+          editAction={
+            <EditProfileDialog
+              user={user}
+              profile={fullProfile}
+              onProfileUpdated={(updated) => {
+                setProfile((prev) => ({
+                  ...(prev || fullProfile),
+                  ...updated,
+                }));
+              }}
+            />
+          }
+        />
 
         {/* 5. 링크 카드 리스트 */}
         <section className="w-full space-y-3.5 my-3" aria-label="개인 링크 목록">

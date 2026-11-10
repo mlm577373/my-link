@@ -10,17 +10,20 @@ import { cn } from '@/lib/utils';
 
 interface ProfileHeaderProps {
   profile: UserProfile;
+  isOwner?: boolean;
+  editAction?: React.ReactNode;
 }
 
-export function ProfileHeader({ profile }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, isOwner, editAction }: ProfileHeaderProps) {
   const [copied, setCopied] = useState(false);
   const isLightTheme = profile.theme === 'minimalist-light';
 
   const handleShare = async () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    // 개인 공개 페이지 URL 결정: profile.username 경로 우선
-    const url = profile.username
-      ? `${origin}/${profile.username}`
+    // 개인 공개 페이지 URL 결정: profile.displayName 경로 우선
+    const targetIdentifier = profile.displayName || profile.username;
+    const url = targetIdentifier
+      ? `${origin}/${encodeURIComponent(targetIdentifier)}`
       : typeof window !== 'undefined'
       ? window.location.href
       : '';
@@ -58,8 +61,9 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
   return (
     <section className="relative w-full flex flex-col items-center text-center mb-7">
-      {/* 상단 우측 공유 액션 버튼 */}
-      <div className="absolute top-0 right-0 z-20">
+      {/* 상단 우측 액션 버튼 (공유 & 프로필 편집) */}
+      <div className="absolute top-0 right-0 z-20 flex items-center gap-1.5">
+        {isOwner && editAction}
         <Button
           variant="outline"
           size="sm"

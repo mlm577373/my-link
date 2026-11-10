@@ -18,7 +18,7 @@ import {
   where,
   limit,
 } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import { User, updateProfile } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
 import { LinkItem, UserProfile } from '@/types';
 import { DEFAULT_USER_PROFILE } from '@/data/dummy-data';
@@ -40,6 +40,12 @@ export function linksCol(userId?: string) {
 export function userDoc(userId?: string) {
   const targetId = resolveUserId(userId);
   return doc(db, 'users', targetId);
+}
+
+/** profile 문서 참조 반환: users/{userId}/profile/info */
+export function profileDoc(userId?: string) {
+  const targetId = resolveUserId(userId);
+  return doc(db, 'users', targetId, 'profile', 'info');
 }
 
 /** undefined 값을 가진 키를 제거 (Firestore는 undefined 비허용) */
@@ -189,11 +195,24 @@ export async function deleteLinkFromFirestore(
   await deleteDoc(docRef);
 }
 
-/** users/{userId} 유저 프로필 조회 */
+/** users/{userId} 및 users/{userId}/profile 유저 프로필 조회 */
 export async function getUserProfileFromFirestore(
   userId?: string
 ): Promise<UserProfile | null> {
-  const docRef = userDoc(userId);
+  const targetId = resolveUserId(userId);
+
+  // 1. users/{userId}/profile/info 서브컬렉션 먼저 확인
+  try {
+    const subDocSnap = await getDoc(profileDoc(targetId));
+    if (subDocSnap.exists()) {
+      return subDocSnap.data() as UserProfile;
+    }
+  } catch (err) {
+    console.error('users/{userId}/profile 조회 오류:', err);
+  }
+
+  // 2. 기존 users/{userId} 메인 문서 호환 확인
+  const docRef = userDoc(targetId);
   const docSnap = await getDoc(docRef);
   if (!docSnap.exists()) {
     return null;
@@ -201,17 +220,25 @@ export async function getUserProfileFromFirestore(
   return docSnap.data() as UserProfile;
 }
 
-/** users/{userId} 유저 프로필 저장/업데이트 */
+/** users/{userId} 및 users/{userId}/profile 유저 프로필 저장/업데이트 */
 export async function saveUserProfileToFirestore(
   userId: string,
   profile: Partial<UserProfile>
 ): Promise<void> {
-  const docRef = userDoc(userId);
   const data = stripUndefined({
     ...profile,
     updatedAt: serverTimestamp(),
   });
-  await setDoc(docRef, data, { merge: true });
+
+  // 1. users/{userId} 메인 문서 저장 (쿼리 검색 및 기본 식별)
+  await setDoc(userDoc(userId), data, { merge: true });
+
+  // 2. users/{userId}/profile/info 서브컬렉션 동시 저장
+  try {
+    await setDoc(profileDoc(userId), data, { merge: true });
+  } catch (err) {
+    console.warn('users/{userId}/profile 저장 경고:', err);
+  }
 }
 
 /**
@@ -294,4 +321,204 @@ export async function findUserAndLinks(
     ...userProfile,
     links,
   });
+}
+
+/**
+ * displayName으로 사용자를 검색하고 users/{userId}/profile 및 users/{userId}/links 데이터를 반환
+ */
+export async function findUserByDisplayNameAndLinks(
+  displayName: string
+): Promise<{ profile: UserProfile; userId: string } | null> {
+  if (!displayName) return null;
+  const targetName = displayName.trim();
+
+  try {
+    let targetUid: string | null = null;
+    let userProfile: UserProfile | null = null;
+
+    // 1. displayName 필드로 쿼리
+    const q = query(
+      collection(db, 'users'),
+      where('displayName', '==', targetName),
+      limit(1)
+    );
+    const querySnap = await getDocs(q);
+
+    if (!querySnap.empty) {
+      targetUid = querySnap.docs[0].id;
+      userProfile = querySnap.docs[0].data() as UserProfile;
+    }
+
+    // 2. 일치 유저가 없으면 username 또는 UID로 폴백 검색
+    if (!targetUid) {
+      const qUsername = query(
+        collection(db, 'users'),
+        where('username', '==', targetName.toLowerCase()),
+        limit(1)
+      );
+      const usernameSnap = await getDocs(qUsername);
+      if (!usernameSnap.empty) {
+        targetUid = usernameSnap.docs[0].id;
+        userProfile = usernameSnap.docs[0].data() as UserProfile;
+      }
+    }
+
+    // 3. UID 직접 검색 폴백
+    if (!targetUid) {
+      const directSnap = await getDoc(doc(db, 'users', targetName));
+      if (directSnap.exists()) {
+        targetUid = directSnap.id;
+        userProfile = directSnap.data() as UserProfile;
+      }
+    }
+
+    if (!targetUid) {
+      return null;
+    }
+
+    // 4. users/{targetUid}/profile 서브컬렉션에서 프로필 상세 확인 (없으면 기존 userProfile)
+    try {
+      const profileSubSnap = await getDoc(profileDoc(targetUid));
+      if (profileSubSnap.exists()) {
+        userProfile = {
+          ...userProfile,
+          ...(profileSubSnap.data() as UserProfile),
+        };
+      }
+    } catch (e) {
+      console.warn('profile 서브컬렉션 확인 중 에러:', e);
+    }
+
+    if (!userProfile) {
+      return null;
+    }
+
+    // 5. users/{targetUid}/links 서브컬렉션에서 활성 링크 목록 조회
+    const links = await getLinksFromFirestore(targetUid);
+
+    return {
+      userId: targetUid,
+      profile: sanitizeFirestoreData({
+        ...userProfile,
+        links,
+      }),
+    };
+  } catch (error) {
+    console.error('findUserByDisplayNameAndLinks 에러:', error);
+    return null;
+  }
+}
+
+/**
+ * displayName(닉네임/표시 이름) 중복 여부 확인
+ * @param displayName 확인할 표시 이름
+ * @param currentUserId 현재 로그인한 사용자의 UID (자신의 기존 닉네임은 사용 가능 처리)
+ */
+export async function checkDisplayNameAvailability(
+  displayName: string,
+  currentUserId?: string
+): Promise<{ isAvailable: boolean; message: string }> {
+  const trimmed = displayName.trim();
+
+  if (!trimmed) {
+    return { isAvailable: false, message: '닉네임을 입력해주세요.' };
+  }
+  if (trimmed.length < 2) {
+    return { isAvailable: false, message: '닉네임은 2글자 이상이어야 합니다.' };
+  }
+  if (trimmed.length > 20) {
+    return { isAvailable: false, message: '닉네임은 20자 이하로 입력해주세요.' };
+  }
+
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('displayName', '==', trimmed),
+      limit(5)
+    );
+    const snap = await getDocs(q);
+
+    const isTakenByOther = snap.docs.some((doc) => doc.id !== currentUserId);
+
+    if (isTakenByOther) {
+      return { isAvailable: false, message: '이미 사용 중인 닉네임입니다.' };
+    }
+
+    return { isAvailable: true, message: '사용 가능한 닉네임입니다.' };
+  } catch (error) {
+    console.error('displayName 중복 확인 오류:', error);
+    return { isAvailable: false, message: '중복 확인 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * username(공개 URL 핸들) 중복 여부 확인
+ * @param username 확인할 사용자 핸들
+ * @param currentUserId 현재 로그인한 사용자의 UID
+ */
+export async function checkUsernameAvailability(
+  username: string,
+  currentUserId?: string
+): Promise<{ isAvailable: boolean; message: string }> {
+  const trimmed = username.trim().toLowerCase();
+
+  if (!trimmed) {
+    return { isAvailable: false, message: '아이디를 입력해주세요.' };
+  }
+  if (!/^[a-z0-9_-]{3,20}$/.test(trimmed)) {
+    return {
+      isAvailable: false,
+      message: '아이디는 3~20자의 영문 소문자, 숫자, 밑줄(_), 하이픈(-)만 가능합니다.',
+    };
+  }
+
+  try {
+    const q = query(
+      collection(db, 'users'),
+      where('username', '==', trimmed),
+      limit(5)
+    );
+    const snap = await getDocs(q);
+
+    const isTakenByOther = snap.docs.some((doc) => doc.id !== currentUserId);
+
+    if (isTakenByOther) {
+      return { isAvailable: false, message: '이미 사용 중인 아이디입니다.' };
+    }
+
+    return { isAvailable: true, message: '사용 가능한 아이디입니다.' };
+  } catch (error) {
+    console.error('username 중복 확인 오류:', error);
+    return { isAvailable: false, message: '중복 확인 중 오류가 발생했습니다.' };
+  }
+}
+
+/**
+ * 사용자 프로필 저장 및 Firebase Auth 동기화
+ */
+export async function updateUserProfileWithAuth(
+  userId: string,
+  updatedData: Partial<UserProfile>
+): Promise<void> {
+  // 1. Firestore users/{userId} 저장
+  await saveUserProfileToFirestore(userId, updatedData);
+
+  // 2. Firebase Auth 사용자 객체 동기화
+  if (auth.currentUser && auth.currentUser.uid === userId) {
+    const authUpdatePayload: { displayName?: string; photoURL?: string } = {};
+    if (updatedData.displayName !== undefined) {
+      authUpdatePayload.displayName = updatedData.displayName;
+    }
+    if (updatedData.avatarUrl !== undefined) {
+      authUpdatePayload.photoURL = updatedData.avatarUrl || '';
+    }
+
+    if (Object.keys(authUpdatePayload).length > 0) {
+      try {
+        await updateProfile(auth.currentUser, authUpdatePayload);
+      } catch (err) {
+        console.warn('Firebase Auth updateProfile 경고:', err);
+      }
+    }
+  }
 }

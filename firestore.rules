@@ -1,0 +1,77 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ==========================================
+    // 헬퍼 함수 정의
+    // ==========================================
+
+    // 로그인 인증 여부 확인
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 문서 소유자 일치 여부 확인
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 프로필 데이터 유효성 검사 (닉네임 2~20자, 소개글 150자 이내)
+    function isValidProfileData(data) {
+      return (
+        (!('displayName' in data) || (data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 20)) &&
+        (!('bio' in data) || (data.bio is string && data.bio.size() <= 150)) &&
+        (!('username' in data) || (data.username is string && data.username.size() >= 3 && data.username.size() <= 20))
+      );
+    }
+
+    // ==========================================
+    // 1. users 컬렉션 및 하위 서브컬렉션
+    // ==========================================
+    match /users/{userId} {
+      // 읽기: 누구나 가능 (공개 프로필 조회 및 닉네임 중복 확인 쿼리 허용)
+      allow read: if true;
+
+      // 쓰기: 본인 계정만 생성/수정/삭제 가능
+      allow create, update: if isOwner(userId) && isValidProfileData(request.resource.data);
+      allow delete: if isOwner(userId);
+
+      // ------------------------------------------
+      // 2. users/{userId}/profile 서브컬렉션
+      // ------------------------------------------
+      match /profile/{docId} {
+        // 읽기: 누구나 가능
+        allow read: if true;
+
+        // 쓰기: 본인 계정만 생성/수정/삭제 가능
+        allow create, update: if isOwner(userId) && isValidProfileData(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      // ------------------------------------------
+      // 3. users/{userId}/links 서브컬렉션
+      // ------------------------------------------
+      match /links/{linkId} {
+        // 읽기: 누구나 가능 (공개 링크 목록 열람)
+        allow read: if true;
+
+        // 생성 및 삭제: 본인만 가능
+        allow create, delete: if isOwner(userId);
+
+        // 수정: 본인은 전체 수정 가능,
+        // 일반 방문자는 링크 클릭 수(clicks) 필드만 단독 업데이트 허용
+        allow update: if isOwner(userId) || (
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['clicks']) &&
+          request.resource.data.clicks is number
+        );
+      }
+    }
+
+    // ==========================================
+    // 기타 모든 미지정 컬렉션/문서는 기본 차단
+    // ==========================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

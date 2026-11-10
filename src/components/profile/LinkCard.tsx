@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronRight, Pencil, Trash2, X, Check, Sparkles, Loader2 } from 'lucide-react';
+import { ChevronRight, Pencil, Trash2, X, Check, Sparkles, Loader2, MousePointerClick } from 'lucide-react';
 import { LinkItem, ButtonStyle } from '@/types';
 import { PlatformIcon } from '@/components/common/PlatformIcon';
 import { Badge } from '@/components/ui/badge';
@@ -449,6 +449,21 @@ export function LinkCard({
                     {link.badge}
                   </Badge>
                 )}
+                {/* 누적 클릭수 표시 뱃지 */}
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors shrink-0',
+                    isSolidVariant
+                      ? 'bg-slate-100 text-slate-700 border-slate-300'
+                      : cardThemeClass?.includes('text-slate-900') || cardThemeClass?.includes('text-gray-900')
+                      ? 'bg-slate-900/5 text-slate-700 border-slate-900/10'
+                      : 'bg-white/5 text-slate-300 border-white/10 group-hover:bg-white/10 group-hover:text-white'
+                  )}
+                  title="총 클릭 수"
+                >
+                  <MousePointerClick className="w-3 h-3 text-indigo-400" />
+                  <span>{(link.clicks || 0).toLocaleString()}회</span>
+                </span>
               </div>
               {link.subtitle && (
                 <p

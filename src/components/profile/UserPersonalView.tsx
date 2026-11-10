@@ -8,6 +8,7 @@ import {
   ensureUserProfile,
   updateLinkInFirestore,
   saveUserProfileToFirestore,
+  incrementLinkClick,
 } from '@/lib/firestore';
 import { LinkItem, UserProfile, ThemeKey } from '@/types';
 import { THEME_PRESETS } from '@/data/dummy-data';
@@ -101,7 +102,7 @@ export function UserPersonalView({ user }: UserPersonalViewProps) {
     );
 
     try {
-      await updateLinkInFirestore(user.uid, linkId, { clicks: nextClicks });
+      await incrementLinkClick(user.uid, linkId);
     } catch (e) {
       console.error('클릭 수 업데이트 실패:', e);
     }

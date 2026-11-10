@@ -17,6 +17,7 @@ import {
   onSnapshot,
   where,
   limit,
+  increment,
 } from 'firebase/firestore';
 import { User, updateProfile } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
@@ -173,6 +174,21 @@ export async function updateLinkInFirestore(
   }
 
   await updateDoc(docRef, updatePayload);
+}
+
+/**
+ * 링크 클릭 수(clicks)를 원자적으로 1 증가 (동시성 안전)
+ */
+export async function incrementLinkClick(
+  userId: string,
+  linkId: string
+): Promise<void> {
+  if (!userId || !linkId) return;
+  const targetId = resolveUserId(userId);
+  const docRef = doc(linksCol(targetId), linkId);
+  await updateDoc(docRef, {
+    clicks: increment(1),
+  });
 }
 
 /** 특정 링크 문서를 삭제 */

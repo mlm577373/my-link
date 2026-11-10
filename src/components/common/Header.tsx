@@ -2,11 +2,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddLinkDialog } from '@/components/profile/AddLinkDialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { LogOut, Plus, Loader2 } from 'lucide-react';
+import { LogOut, Plus, Loader2, BarChart2, Home } from 'lucide-react';
 
 function GoogleIcon({ className = 'w-4 h-4' }: { className?: string }) {
   return (
@@ -35,6 +36,7 @@ export function Header() {
   const { user, loading, signInWithGoogle, logout } = useAuth();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const pathname = usePathname();
 
   const handleLogin = async () => {
     try {
@@ -89,6 +91,33 @@ export function Header() {
 
         {/* 우측: 인증 상태 및 액션 버튼들 */}
         <div className="flex items-center gap-2.5">
+          {/* 로그인 사용자 전용 네비게이션 */}
+          {user && !loading && (
+            <nav className="hidden sm:flex items-center gap-1 mr-1">
+              <Link
+                href="/"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  pathname === '/'
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Home className="w-3.5 h-3.5" />
+                <span>홈</span>
+              </Link>
+              <Link
+                href="/stats"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                  pathname === '/stats'
+                    ? 'bg-white/10 text-white'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <BarChart2 className="w-3.5 h-3.5" />
+                <span>통계</span>
+              </Link>
+            </nav>
+          )}
           {loading ? (
             <div className="flex items-center gap-2 text-slate-400 text-xs py-1 px-3">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

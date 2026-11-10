@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { UserProfile, LinkItem } from '@/types';
 import { THEME_PRESETS } from '@/data/dummy-data';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { PlatformIcon } from '@/components/common/PlatformIcon';
-import { ExternalLink, Sparkles } from 'lucide-react';
-import { updateLinkInFirestore } from '@/lib/firestore';
+import { ExternalLink, Sparkles, MousePointerClick } from 'lucide-react';
+import { incrementLinkClick } from '@/lib/firestore';
 import { cn } from '@/lib/utils';
 
 interface PublicProfileViewProps {
@@ -20,7 +20,10 @@ export function PublicProfileView({ profile, userId }: PublicProfileViewProps) {
     THEME_PRESETS.find((t) => t.key === profile.theme) || THEME_PRESETS[2]; // 기본 aurora-dream
   const isLightTheme = profile.theme === 'minimalist-light';
 
-  const activeLinks = [...(profile.links || [])]
+  // 실시간 클릭수 반영을 위한 로컬 링크 상태
+  const [linksList, setLinksList] = useState<LinkItem[]>(profile.links || []);
+
+  const activeLinks = [...linksList]
     .filter((l) => l.isActive)
     .sort((a, b) => a.order - b.order);
 
@@ -29,13 +32,21 @@ export function PublicProfileView({ profile, userId }: PublicProfileViewProps) {
     return name.slice(0, 2).toUpperCase();
   };
 
-  // 링크 클릭 시 Firestore 카운트 증가 처리
+  // 링크 클릭 시 Firestore 카운트 원자적 증가 + 낙관적 UI 즉시 업데이트
   const handleLinkClick = async (link: LinkItem) => {
+    // 1. 낙관적 UI 업데이트: 화면의 클릭 수 즉시 +1
+    setLinksList((prev) =>
+      prev.map((item) =>
+        item.id === link.id
+          ? { ...item, clicks: (item.clicks || 0) + 1 }
+          : item
+      )
+    );
+
+    // 2. Firestore increment(1) 원자적 증가 저장
     if (userId) {
       try {
-        await updateLinkInFirestore(userId, link.id, {
-          clicks: (link.clicks || 0) + 1,
-        });
+        await incrementLinkClick(userId, link.id);
       } catch (err) {
         console.warn('링크 클릭 수 업데이트 실패:', err);
       }
@@ -184,8 +195,22 @@ export function PublicProfileView({ profile, userId }: PublicProfileViewProps) {
                   </div>
                 </div>
 
-                {/* 우측: 배지 및 새 탭 외부 링크 아이콘 */}
+                {/* 우측: 클릭수 뱃지, 커스텀 배지, 새 탭 외부 링크 아이콘 */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* 클릭수 카운트 뱃지 */}
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full backdrop-blur-sm border transition-colors',
+                      isLightTheme
+                        ? 'bg-slate-100/90 text-slate-600 border-slate-200'
+                        : 'bg-white/5 text-slate-300 border-white/10 group-hover:bg-white/10 group-hover:text-white'
+                    )}
+                    title="총 클릭 수"
+                  >
+                    <MousePointerClick className="w-3 h-3 text-indigo-400" />
+                    <span>{(link.clicks || 0).toLocaleString()}회</span>
+                  </span>
+
                   {link.badge && (
                     <Badge
                       variant="secondary"

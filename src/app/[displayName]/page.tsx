@@ -64,9 +64,16 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${profile.displayName}님의 마이링크`,
     description: profile.bio || `${profile.displayName}님의 마이링크 페이지입니다.`,
     openGraph: {
-      title: `${profile.displayName}님의 마이링크`,
-      description: profile.bio,
-      images: profile.avatarUrl ? [profile.avatarUrl] : [],
+      title: `${profile.displayName} (@${profile.username}) • MyLink`,
+      description: profile.bio || `${profile.displayName}님의 모든 링크와 소셜 채널을 확인하세요.`,
+      siteName: 'MyLink',
+      locale: 'ko_KR',
+      type: 'profile',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${profile.displayName} (@${profile.username}) • MyLink`,
+      description: profile.bio || `${profile.displayName}님의 모든 링크와 소셜 채널을 확인하세요.`,
     },
   };
 }

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { LoginPrompt } from '@/components/common/LoginPrompt';
+import { LandingPage } from '@/components/landing/LandingPage';
 import { UserPersonalView } from '@/components/profile/UserPersonalView';
 import { Loader2 } from 'lucide-react';
 
@@ -18,8 +18,8 @@ export default function HomePage() {
           <p className="text-sm text-slate-300">인증 상태 확인 중...</p>
         </div>
       ) : !user ? (
-        /* 미로그인 상태: 로그인 안내 문구 및 로그인 유도 UI */
-        <LoginPrompt />
+        /* 미로그인 상태: 인터랙티브 랜딩 페이지 및 Google 로그인 유도 */
+        <LandingPage />
       ) : (
         /* 로그인 상태: users/{user.uid}/links Firestore 개인화 화면 */
         <UserPersonalView user={user} />
